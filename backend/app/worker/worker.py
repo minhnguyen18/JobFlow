@@ -9,7 +9,9 @@ from sqlalchemy import text
 
 from app.core.database import SessionLocal
 from app.worker.handlers import HANDLERS
-
+from app.services.workflow_service import (
+    unlock_dependent_jobs,
+)
 
 WORKER_ID = (
     f"{socket.gethostname()}-"
@@ -253,6 +255,15 @@ async def execute_job(job: dict):
             job_id,
             result,
         )
+        unlocked = await unlock_dependent_jobs(
+            job_id
+        )
+
+        for child_id in unlocked:
+
+            print(
+                f"Unlocked dependent Job {child_id}"
+            )
 
         print(
             f"[{WORKER_ID}] "

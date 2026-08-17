@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
-
+from sqlalchemy import ForeignKey
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -116,3 +116,17 @@ class Job(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    workflow_id: Mapped[int | None] = mapped_column(
+    Integer,
+    ForeignKey(
+        "workflows.id",
+        ondelete="CASCADE",
+    ),
+    nullable=True,
+    index=True,
+)
+
+step_key: Mapped[str | None] = mapped_column(
+    String(100),
+    nullable=True,
+)

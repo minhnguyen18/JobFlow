@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.models.job import Job
 from app.schemas.job import JobCreate, JobResponse
-
+from sqlalchemy import update
 
 router = APIRouter(
     prefix="/jobs",
@@ -74,3 +73,42 @@ async def get_job(
         )
 
     return job
+
+@router.post("/{job_id}/retry")
+async def retry_job(
+    job_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+
+    result = await session.execute(
+        select(Job).where(
+            Job.id == job_id
+        )
+    )
+
+    job = result.scalar_one_or_none()
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found",
+        )
+
+    if job.status != "dead":
+        raise HTTPException(
+            status_code=400,
+            detail="Only dead jobs can be retried",
+        )
+
+    job.status = "queued"
+    job.retry_count = 0
+    job.last_error = None
+    job.queued_at = datetime.now(timezone.utc)
+    job.completed_at = None
+
+    await session.commit()
+
+    return {
+        "message": "Job requeued",
+        "job_id": job.id,
+    }
